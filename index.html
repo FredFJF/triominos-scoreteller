@@ -65,6 +65,7 @@
     .btn-secondary { background: #3b82f6; color: #fff; }
     .btn-success { background: #10b981; color: #fff; }
     .btn-danger { background: #ef4444; color: #fff; }
+    .btn-warning { background: #d97706; color: #fff; }
     .btn-mic { background: #8b5cf6; color: #fff; width: auto; padding: 14px; }
 
     .leaderboard-item {
@@ -178,19 +179,19 @@
     
     <div id="final-leaderboard"></div>
 
-    <button class="btn btn-danger" style="margin-top: 20px;" onclick="closeApp()">❌ App Sluiten</button>
-    <button class="btn btn-secondary" style="margin-top: 10px;" onclick="resetToMenu()">🏠 Nieuw Spel met Andere Spelers</button>
+    <button class="btn btn-secondary" style="margin-top: 15px;" onclick="resetToMenu()">🏠 Nieuw Spel / Homepage</button>
+    <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearHistoryFromFinal()">🗑️ Oude Historie Wissen</button>
   </div>
 
-  <!-- EIGEN SLUITSCHERM (Met automatische terugkeer naar Homepage) -->
-  <div id="close-modal" class="modal-overlay hidden">
-    <div class="card" style="width: 100%; max-width: 350px; text-align: center; padding: 25px;">
-      <div style="font-size: 3rem; margin-bottom: 10px;">👋</div>
-      <h2 style="color: #f59e0b; margin-bottom: 10px;">Bedankt voor het spelen!</h2>
-      <p style="color: #cbd5e1; margin-bottom: 20px; font-size: 1.05rem; line-height: 1.5;">
-        Je wordt nu automatisch teruggebracht naar de beginpagina...
+  <!-- EIGEN BEVESTIGINGSVENSTER VOOR WISSEN -->
+  <div id="clear-modal" class="modal-overlay hidden">
+    <div class="card" style="width: 100%; max-width: 350px; text-align: center; padding: 20px;">
+      <h3 style="color: #ef4444; margin-bottom: 10px;">Historie Wissen?</h3>
+      <p style="color: #cbd5e1; margin-bottom: 20px; font-size: 1rem;">
+        Weet je zeker dat je alle oude opgeslagen spellen wilt verwijderen?
       </p>
-      <button class="btn btn-secondary" onclick="reopenFromClose()">🏠 Nu naar Homepage</button>
+      <button class="btn btn-danger" onclick="confirmClearHistory()">Ja, Wis Alles</button>
+      <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeClearModal()">Annuleren</button>
     </div>
   </div>
 
@@ -206,7 +207,6 @@
     let gameNumber = 1;
     let roundNumber = 1;
     let currentHistory = [];
-    let closeTimer = null;
 
     window.onload = function() {
       const savedHistory = localStorage.getItem('scoreteller_history');
@@ -386,27 +386,28 @@
       });
     }
 
-    /* Sluitscherm met automatische overgang naar homepage */
-    function closeApp() {
-      document.getElementById('close-modal').classList.remove('hidden');
-      
-      // Na 2,5 seconde automatisch terug naar de homepage
-      closeTimer = setTimeout(function() {
-        reopenFromClose();
-      }, 2500);
-    }
-
-    function reopenFromClose() {
-      if (closeTimer) clearTimeout(closeTimer);
-      document.getElementById('close-modal').classList.add('hidden');
-      resetToMenu();
-    }
-
+    /* Direct terug naar Homepage */
     function resetToMenu() {
       document.getElementById('final-screen').classList.add('hidden');
       document.getElementById('game-screen').classList.add('hidden');
       document.getElementById('history-screen').classList.add('hidden');
       document.getElementById('setup-screen').classList.remove('hidden');
+    }
+
+    /* Historie wissen functies */
+    function clearHistoryFromFinal() {
+      document.getElementById('clear-modal').classList.remove('hidden');
+    }
+
+    function closeClearModal() {
+      document.getElementById('clear-modal').classList.add('hidden');
+    }
+
+    function confirmClearHistory() {
+      currentHistory = [];
+      localStorage.removeItem('scoreteller_history');
+      closeClearModal();
+      alert("De oude historie is succesvol gewist!");
     }
 
     function saveCurrentGameToHistory() {
