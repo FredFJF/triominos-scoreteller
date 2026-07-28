@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ScoreTeller</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+    
+    /* === UPDATE: Foto Achtergrond === */
+    body { 
+      background-image: url('image_0.png'); /* Verwijst direct naar je foto */
+      background-size: cover;          /* Vult het hele scherm */
+      background-position: center;     /* Centreert de foto */
+      background-repeat: no-repeat;    /* Herhaalt de foto niet */
+      background-attachment: fixed;    /* Foto blijft staan tijdens scrollen */
+      color: #ffffff; 
+      padding: 15px; 
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 { text-align: center; color: #f59e0b; margin-bottom: 15px; font-size: 2.2rem; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); }
+    
+    .card { 
+      background: rgba(15, 23, 42, 0.9); /* Subtiel transparant donker, zodat de foto erachter zichtbaar is */
+      backdrop-filter: blur(5px);         /* Vervaagt de achtergrondfoto achter de kaart voor leesbaarheid */
+      border-radius: 16px; 
+      padding: 18px; 
+      margin-bottom: 15px; 
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Grote Knoppen & Invoer voor Android */
+    input, button, select { 
+      font-size: 1.2rem; 
+      border-radius: 12px; 
+      border: none; 
+      outline: none; 
+    }
+
+    input[type="text"], input[type="number"] {
+      background: #0f172a;
+      color: #fff;
+      padding: 14px;
+      width: 100%;
+      border: 1px solid #334155;
+      margin-bottom: 10px;
+    }
+
+    /* Grote touch-vriendelijke knoppen */
+    .btn { 
+      background: #f59e0b; 
+      color: #000; 
+      font-weight: bold; 
+      padding: 16px; 
+      width: 100%; 
+      cursor: pointer; 
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-secondary { background: #3b82f6; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-mic { background: #8b5cf6; color: #fff; width: auto; padding: 14px; }
+
+    /* Ranglijst / Standen */
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #334155;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 1.2rem;
+    }
+    .leaderboard-item.rank-1 { background: #713f12; border: 2px solid #f59e0b; font-weight: bold; }
+    .badge { font-size: 1.4rem; font-weight: bold; }
+
+    .score-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .hidden { display: none !important; }
+    
+    /* Historie stijl */
+    .history-game {
+      border-bottom: 1px solid #334155;
+      padding: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🏆 ScoreTeller</h1>
+
+  <!-- 1. SPEL SETUP -->
+  <div id="setup-screen" class="card">
+    <h2 style="margin-bottom: 12px;">Nieuw Spel Starten</h2>
+    <p style="color: #94a3b8; margin-bottom: 15px;">Kies 2, 3 of 4 spelers:</p>
+    
+    <div id="player-inputs">
+      <input type="text" id="p1" value="Speler 1" placeholder="Naam Speler 1">
+      <input type="text" id="p2" value="Speler 2" placeholder="Naam Speler 2">
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 10px;">
+      <button class="btn btn-secondary" style="font-size: 0.9rem;" onclick="setPlayerCount(2)">2 Spelers</button>
+      <button class="btn btn-secondary" style="font-size: 0.9rem;" onclick="setPlayerCount(3)">3 Spelers</button>
+      <button class="btn btn-secondary" style="font-size: 0.9rem;" onclick="setPlayerCount(4)">4 Spelers</button>
+    </div>
+
+    <button class="btn" style="margin-top: 20px;" onclick="startGame()">▶ Spel Starten</button>
+    <button class="btn btn-secondary" onclick="toggleHistory()">📜 Bekijk Oude Spellen</button>
+  </div>
+
+  <!-- 2. ACTIEF SPEL & RANGLIJS -->
+  <div id="game-screen" class="hidden">
+    
+    <!-- Ranglijst / Stand -->
+    <div class="card">
+      <h2 style="margin-bottom: 12px; color: #f59e0b;">Tussenstand / Ranglijst</h2>
+      <div id="leaderboard"></div>
+    </div>
+
+    <!-- Ronde Invoer -->
+    <div class="card">
+      <h2>Score Ronde Invoeren</h2>
+      <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 12px;">
+        Voer een positief of negatief getal in (bijv: 15 of -10):
+      </p>
+
+      <div id="round-inputs"></div>
+
+      <button class="btn" onclick="submitRound()">💾 Score Opslaan</button>
+      <button class="btn btn-danger" style="margin-top: 15px;" onclick="endGame()">🏁 Spel Beëindigen</button>
+    </div>
+  </div>
+
+  <!-- 3. HISTORIE OVERZICHT -->
+  <div id="history-screen" class="card hidden">
+    <h2>Afgemaakte Spellen</h2>
+    <div id="history-list" style="margin-top: 15px;"></div>
+    <button class="btn btn-secondary" style="margin-top: 15px;" onclick="toggleHistory()">⬅ Terug</button>
+  </div>
+
+  <script>
+    let players = [];
+    let currentHistory = [];
+
+    // Laad opgeslagen data bij het openen
+    window.onload = function() {
+      const savedHistory = localStorage.getItem('scoreteller_history');
+      if (savedHistory) {
+        currentHistory = JSON.parse(savedHistory);
+      }
+    };
+
+    function setPlayerCount(count) {
+      const container = document.getElementById('player-inputs');
+      container.innerHTML = '';
+      for (let i = 1; i <= count; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = `p${i}`;
+        input.value = `Speler ${i}`;
+        container.appendChild(input);
+      }
+    }
+
+    function startGame() {
+      players = [];
+      const inputs = document.querySelectorAll('#player-inputs input');
+      inputs.forEach((input, index) => {
+        if (input.value.trim() !== "") {
+          players.push({ id: index, name: input.value.trim(), score: 0 });
+        }
+      });
+
+      if (players.length < 2) {
+        alert("Voer minimaal 2 spelers in!");
+        return;
+      }
+
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+
+      renderGame();
+    }
+
+    function renderGame() {
+      // 1. Ranglijst berekenen en sorteren (Hoogste score bovenaan)
+      const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+      
+      const leaderboardEl = document.getElementById('leaderboard');
+      leaderboardEl.innerHTML = '';
+
+      sortedPlayers.forEach((player, index) => {
+        const ranks = ["1e 🥇", "2e 🥈", "3e 🥉", "4e"];
+        const div = document.createElement('div');
+        div.className = `leaderboard-item ${index === 0 ? 'rank-1' : ''}`;
+        div.innerHTML = `
+          <div>
+            <span class="badge">${ranks[index]}</span>
+            <span style="margin-left: 10px;">${player.name}</span>
+          </div>
+          <div style="font-weight: bold; font-size: 1.4rem;">${player.score} pt</div>
+        `;
+        leaderboardEl.appendChild(div);
+      });
+
+      // 2. Invoer-velden klaarzetten voor de ronde
+      const roundInputsEl = document.getElementById('round-inputs');
+      roundInputsEl.innerHTML = '';
+
+      players.forEach(player => {
+        const div = document.createElement('div');
+        div.className = 'score-input-group';
+        div.innerHTML = `
+          <span style="flex: 1; font-weight: bold;">${player.name}:</span>
+          <input type="number" id="score-input-${player.id}" placeholder="0" style="width: 100px; margin: 0;">
+          <button class="btn btn-mic" onclick="startSpeechRecognition(${player.id})">🎤</button>
+        `;
+        roundInputsEl.appendChild(div);
+      });
+    }
+
+    function submitRound() {
+      players.forEach(player => {
+        const input = document.getElementById(`score-input-${player.id}`);
+        const value = parseInt(input.value);
+        if (!isNaN(value)) {
+          player.score += value;
+        }
+      });
+
+      renderGame();
+    }
+
+    /* Mondelinge Invoer (Spraakherkenning) */
+    function startSpeechRecognition(playerId) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Spraakherkenning wordt niet ondersteund in deze browser.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'nl-NL';
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        let transcript = event.results[0][0].transcript.toLowerCase();
+        
+        // Zorg dat min-woorden worden omgezet naar een echt - teken
+        transcript = transcript.replace('min ', '-').replace('minus ', '-');
+        const number = parseInt(transcript);
+
+        if (!isNaN(number)) {
+          document.getElementById(`score-input-${playerId}`).value = number;
+        } else {
+          alert("Kon geen getal herkennen uit: " + transcript);
+        }
+      };
+    }
+
+    function endGame() {
+      if (confirm("Weet je zeker dat je het spel wilt beëindigen en opslaan?")) {
+        const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+        
+        const gameResult = {
+          date: new Date().toLocaleDateString('nl-NL') + " " + new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit'}),
+          winner: sortedPlayers[0].name,
+          scores: sortedPlayers
+        };
+
+        currentHistory.unshift(gameResult); // Vooraan toevoegen
+        localStorage.setItem('scoreteller_history', JSON.stringify(currentHistory));
+
+        alert(`Spel afgelopen! De winnaar is ${sortedPlayers[0].name} met ${sortedPlayers[0].score} punten!`);
+
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+      }
+    }
+
+    function toggleHistory() {
+      const historyScreen = document.getElementById('history-screen');
+      const setupScreen = document.getElementById('setup-screen');
+      
+      if (historyScreen.classList.contains('hidden')) {
+        setupScreen.classList.add('hidden');
+        historyScreen.classList.remove('hidden');
+        renderHistory();
+      } else {
+        historyScreen.classList.add('hidden');
+        setupScreen.classList.remove('hidden');
+      }
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      list.innerHTML = '';
+
+      if (currentHistory.length === 0) {
+        list.innerHTML = '<p style="color: #94a3b8;">Nog geen eerdere spellen opgeslagen.</p>';
+        return;
+      }
+
+      currentHistory.forEach(game => {
+        const div = document.createElement('div');
+        div.className = 'history-game';
+        
+        let scoresText = game.scores.map(s => `${s.name}: ${s.score}pt`).join(', ');
+
+        div.innerHTML = `
+          <div style="font-size: 0.85rem; color: #f59e0b;">${game.date}</div>
+          <div><strong>Winnaar:</strong> 🥇 ${game.winner}</div>
+          <div style="font-size: 0.95rem; color: #cbd5e1; margin-top: 4px;">${scoresText}</div>
+        `;
+        list.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
