@@ -84,9 +84,10 @@
       background: #1e293b;
       border-radius: 10px;
       padding: 12px;
-      margin-bottom: 10px;
-      border-left: 4px solid #f59e0b;
+      margin-bottom: 12px;
+      border-left: 5px solid #3b82f6;
     }
+    .player-summary-card.rank-1 { border-left-color: #f59e0b; background: #2a1f10; }
 
     .score-input-group {
       display: flex;
@@ -102,11 +103,10 @@
       padding: 10px 0;
     }
 
-    /* Modal / Pop-up venster stijl */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.85);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -119,7 +119,7 @@
 
   <h1>🏆 ScoreTeller</h1>
 
-  <!-- 1. SPEL SETUP -->
+  <!-- 1. SPEL SETUP (HOMEPAGE) -->
   <div id="setup-screen" class="card">
     <h2 style="margin-bottom: 12px;">Nieuw Spel Starten</h2>
     <p style="color: #94a3b8; margin-bottom: 15px;">Kies 2, 3 of 4 spelers:</p>
@@ -147,7 +147,7 @@
       <span id="round-counter" style="background: #334155; padding: 6px 12px; border-radius: 20px; font-weight: bold;">Ronde 1</span>
     </div>
 
-    <!-- Ranglijst / Tussenstand van HUIDIGE spel -->
+    <!-- Tussenstand van HUIDIGE spel -->
     <div class="card">
       <h3 style="margin-bottom: 12px; color: #cbd5e1;">Tussenstand van dit spel</h3>
       <div id="leaderboard"></div>
@@ -165,25 +165,13 @@
       <button class="btn btn-success" onclick="submitRound()">💾 Ronde Opslaan & Volgende Ronde</button>
       
       <div style="display: flex; gap: 8px; margin-top: 15px;">
-        <button class="btn btn-secondary" style="font-size: 0.95rem;" onclick="openConfirmModal()">🔄 Spel Voltooien & Nieuw Spel</button>
+        <button class="btn btn-secondary" style="font-size: 0.95rem;" onclick="confirmNextGame()">🔄 Spel Voltooien & Nieuw Spel</button>
         <button class="btn btn-danger" style="font-size: 0.95rem;" onclick="showFinalScores()">🏁 Spel Beëindigen</button>
       </div>
     </div>
   </div>
 
-  <!-- EIGEN POP-UP VENSTER (Vervangt de browsermelding) -->
-  <div id="confirm-modal" class="modal-overlay hidden">
-    <div class="card" style="width: 100%; max-width: 350px; text-align: center;">
-      <h3 style="color: #f59e0b; margin-bottom: 10px;">Nieuw Spel Starten?</h3>
-      <p style="color: #cbd5e1; margin-bottom: 20px; font-size: 1.05rem;">
-        Wil je dit spel voltooien en direct een nieuw spel starten met dezelfde spelers?
-      </p>
-      <button class="btn btn-success" onclick="confirmNextGame()">Ja, Nieuw Spel Starten</button>
-      <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeConfirmModal()">Annuleren</button>
-    </div>
-  </div>
-
-  <!-- 3. EINDSCHERM (OVERZICHT ALLE SPELEN) -->
+  <!-- 3. EINDSCHERM -->
   <div id="final-screen" class="card hidden">
     <h2 style="color: #f59e0b; text-align: center; margin-bottom: 5px;">🏆 Eindstand</h2>
     <p style="text-align: center; color: #cbd5e1; font-size: 1.1rem; margin-bottom: 15px;" id="final-summary-text"></p>
@@ -192,6 +180,18 @@
 
     <button class="btn btn-danger" style="margin-top: 20px;" onclick="closeApp()">❌ App Sluiten</button>
     <button class="btn btn-secondary" style="margin-top: 10px;" onclick="resetToMenu()">🏠 Nieuw Spel met Andere Spelers</button>
+  </div>
+
+  <!-- EIGEN SLUITSCHERM (Met automatische terugkeer naar Homepage) -->
+  <div id="close-modal" class="modal-overlay hidden">
+    <div class="card" style="width: 100%; max-width: 350px; text-align: center; padding: 25px;">
+      <div style="font-size: 3rem; margin-bottom: 10px;">👋</div>
+      <h2 style="color: #f59e0b; margin-bottom: 10px;">Bedankt voor het spelen!</h2>
+      <p style="color: #cbd5e1; margin-bottom: 20px; font-size: 1.05rem; line-height: 1.5;">
+        Je wordt nu automatisch teruggebracht naar de beginpagina...
+      </p>
+      <button class="btn btn-secondary" onclick="reopenFromClose()">🏠 Nu naar Homepage</button>
+    </div>
   </div>
 
   <!-- 4. HISTORIE OVERZICHT -->
@@ -206,6 +206,7 @@
     let gameNumber = 1;
     let roundNumber = 1;
     let currentHistory = [];
+    let closeTimer = null;
 
     window.onload = function() {
       const savedHistory = localStorage.getItem('scoreteller_history');
@@ -328,18 +329,7 @@
       };
     }
 
-    /* Eigen Pop-up functies */
-    function openConfirmModal() {
-      document.getElementById('confirm-modal').classList.remove('hidden');
-    }
-
-    function closeConfirmModal() {
-      document.getElementById('confirm-modal').classList.add('hidden');
-    }
-
     function confirmNextGame() {
-      closeConfirmModal();
-
       players.forEach(p => {
         p.gameScores.push(p.score);
       });
@@ -362,7 +352,7 @@
       document.getElementById('game-screen').classList.add('hidden');
       document.getElementById('final-screen').classList.remove('hidden');
 
-      document.getElementById('final-summary-text').innerText = `Er zijn ${gameNumber} spelen gespeeld.`;
+      document.getElementById('final-summary-text').innerText = `Er ${gameNumber === 1 ? 'is 1 spel' : 'zijn ' + gameNumber + ' spelen'} gespeeld.`;
 
       const finalLeaderboardEl = document.getElementById('final-leaderboard');
       finalLeaderboardEl.innerHTML = '';
@@ -374,30 +364,48 @@
 
       playerTotals.sort((a, b) => b.totalScore - a.totalScore);
 
-      playerTotals.forEach(pt => {
+      const ranks = ["1e Plek 🥇", "2e Plek 🥈", "3e Plek 🥉", "4e Plek"];
+
+      playerTotals.forEach((pt, index) => {
         const div = document.createElement('div');
-        div.className = 'player-summary-card';
+        div.className = `player-summary-card ${index === 0 ? 'rank-1' : ''}`;
         
         let scoresPerGameText = pt.scores.map((score, idx) => `Spel ${idx + 1}: <strong>${score}</strong> pt`).join('<br>');
 
         div.innerHTML = `
-          <div style="font-size: 1.3rem; font-weight: bold; color: #f59e0b; margin-bottom: 5px;">${pt.name}</div>
-          <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 8px;">${scoresPerGameText}</div>
-          <div style="font-size: 1.1rem; font-weight: bold; border-top: 1px solid #334155; padding-top: 5px; color: #10b981;">
-            Totaal behaalde punten: ${pt.totalScore} pt
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 1.3rem; font-weight: bold; color: ${index === 0 ? '#f59e0b' : '#3b82f6'};">${pt.name}</span>
+            <span style="font-size: 1.1rem; font-weight: bold; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 8px;">${ranks[index] || (index+1)+'e Plek'}</span>
+          </div>
+          <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 8px; line-height: 1.4;">${scoresPerGameText}</div>
+          <div style="font-size: 1.15rem; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; color: #10b981;">
+            Totaal: ${pt.totalScore} pt
           </div>
         `;
         finalLeaderboardEl.appendChild(div);
       });
     }
 
+    /* Sluitscherm met automatische overgang naar homepage */
     function closeApp() {
-      alert("Je kunt deze tab nu sluiten op je telefoon.");
-      window.close();
+      document.getElementById('close-modal').classList.remove('hidden');
+      
+      // Na 2,5 seconde automatisch terug naar de homepage
+      closeTimer = setTimeout(function() {
+        reopenFromClose();
+      }, 2500);
+    }
+
+    function reopenFromClose() {
+      if (closeTimer) clearTimeout(closeTimer);
+      document.getElementById('close-modal').classList.add('hidden');
+      resetToMenu();
     }
 
     function resetToMenu() {
       document.getElementById('final-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
       document.getElementById('setup-screen').classList.remove('hidden');
     }
 
