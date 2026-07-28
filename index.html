@@ -80,6 +80,15 @@
     .leaderboard-item.rank-1 { background: #713f12; border: 2px solid #f59e0b; font-weight: bold; }
     .badge { font-size: 1.4rem; font-weight: bold; }
 
+    /* Stijl voor uitgebreid eindoverzicht */
+    .player-summary-card {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-left: 4px solid #f59e0b;
+    }
+
     .score-input-group {
       display: flex;
       align-items: center;
@@ -105,7 +114,6 @@
     <p style="color: #94a3b8; margin-bottom: 15px;">Kies 2, 3 of 4 spelers:</p>
     
     <div id="player-inputs">
-      <!-- onfocus="this.value=''" zorgt voor het wissen van de tekst bij aanklikken -->
       <input type="text" id="p1" value="Speler 1" placeholder="Naam Speler 1" onfocus="this.value=''">
       <input type="text" id="p2" value="Speler 2" placeholder="Naam Speler 2" onfocus="this.value=''">
     </div>
@@ -128,7 +136,7 @@
       <span id="round-counter" style="background: #334155; padding: 6px 12px; border-radius: 20px; font-weight: bold;">Ronde 1</span>
     </div>
 
-    <!-- Ranglijst / Tussenstand -->
+    <!-- Ranglijst / Tussenstand van HUIDIGE spel -->
     <div class="card">
       <h3 style="margin-bottom: 12px; color: #cbd5e1;">Tussenstand van dit spel</h3>
       <div id="leaderboard"></div>
@@ -152,14 +160,15 @@
     </div>
   </div>
 
-  <!-- 3. EINDSCHERM (TOTAALSTAND) -->
+  <!-- 3. EINDSCHERM (OVERZICHT ALLE SPELEN) -->
   <div id="final-screen" class="card hidden">
-    <h2 style="color: #f59e0b; text-align: center; margin-bottom: 10px;">🏆 Eindstand Spel</h2>
-    <p style="text-align: center; color: #cbd5e1; margin-bottom: 15px;" id="final-summary-text"></p>
+    <h2 style="color: #f59e0b; text-align: center; margin-bottom: 5px;">🏆 Eindstand</h2>
+    <p style="text-align: center; color: #cbd5e1; font-size: 1.1rem; margin-bottom: 15px;" id="final-summary-text"></p>
     
     <div id="final-leaderboard"></div>
 
-    <button class="btn btn-success" style="margin-top: 20px;" onclick="confirmEndSession()">💾 Opslaan & Naar Hoofdmenu</button>
+    <button class="btn btn-danger" style="margin-top: 20px;" onclick="closeApp()">❌ App Sluiten</button>
+    <button class="btn btn-secondary" style="margin-top: 10px;" onclick="resetToMenu()">🏠 Nieuw Spel met Andere Spelers</button>
   </div>
 
   <!-- 4. HISTORIE OVERZICHT -->
@@ -173,6 +182,7 @@
     let players = [];
     let gameNumber = 1;
     let roundNumber = 1;
+    let gameHistorySession = []; // Onthoudt alle spelen binnen de huidige sessie
     let currentHistory = [];
 
     window.onload = function() {
@@ -191,17 +201,18 @@
         input.id = `p${i}`;
         input.value = `Speler ${i}`;
         input.placeholder = `Naam Speler ${i}`;
-        input.setAttribute('onfocus', "this.value=''"); // Automatisch wissen bij aanklikken
+        input.setAttribute('onfocus', "this.value=''");
         container.appendChild(input);
       }
     }
 
     function startGameSession() {
       players = [];
+      gameHistorySession = [];
       const inputs = document.querySelectorAll('#player-inputs input');
       inputs.forEach((input, index) => {
         if (input.value.trim() !== "") {
-          players.push({ id: index, name: input.value.trim(), score: 0 });
+          players.push({ id: index, name: input.value.trim(), score: 0, gameScores: [] });
         }
       });
 
@@ -296,50 +307,77 @@
       };
     }
 
-    function showFinalScores() {
-      const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-      
-      document.getElementById('game-screen').classList.add('hidden');
-      document.getElementById('final-screen').classList.remove('hidden');
-
-      document.getElementById('final-summary-text').innerText = 
-        `Gefeliciteerd ${sortedPlayers[0].name}! Hier is de definitieve eindstand na ${roundNumber - 1} ronde(s):`;
-
-      const finalLeaderboardEl = document.getElementById('final-leaderboard');
-      finalLeaderboardEl.innerHTML = '';
-
-      sortedPlayers.forEach((player, index) => {
-        const ranks = ["1e 🥇", "2e 🥈", "3e 🥉", "4e"];
-        const div = document.createElement('div');
-        div.className = `leaderboard-item ${index === 0 ? 'rank-1' : ''}`;
-        div.innerHTML = `
-          <div>
-            <span class="badge">${ranks[index]}</span>
-            <span style="margin-left: 10px;">${player.name}</span>
-          </div>
-          <div style="font-weight: bold; font-size: 1.4rem;">${player.score} pt</div>
-        `;
-        finalLeaderboardEl.appendChild(div);
-      });
-    }
-
-    function confirmEndSession() {
-      saveCurrentGameToHistory();
-
-      document.getElementById('final-screen').classList.add('hidden');
-      document.getElementById('setup-screen').classList.remove('hidden');
-    }
-
+    /* Aangepast naar "Wil je een nieuw spel starten?" */
     function nextGame() {
-      if (confirm(`Wil je Spel ${gameNumber} voltooien en Spel ${gameNumber + 1} starten met dezelfde spelers?`)) {
+      if (confirm("Wil je een nieuw spel starten?")) {
+        // Sla huidige spelscore op in de lijst van de speler
+        players.forEach(p => {
+          p.gameScores.push(p.score);
+        });
+
         saveCurrentGameToHistory();
 
+        // Reset scores voor volgend spel
         players.forEach(p => p.score = 0);
         gameNumber++;
         roundNumber = 1;
 
         renderGame();
       }
+    }
+
+    /* Aangepaste Eindstand overzicht */
+    function showFinalScores() {
+      // Sla ook de score van het laatst gespeelde spel op
+      players.forEach(p => {
+        p.gameScores.push(p.score);
+      });
+      saveCurrentGameToHistory();
+
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('final-screen').classList.remove('hidden');
+
+      // 1. Aantal spelen getoond
+      document.getElementById('final-summary-text').innerText = `Er zijn ${gameNumber} spelen gespeeld.`;
+
+      const finalLeaderboardEl = document.getElementById('final-leaderboard');
+      finalLeaderboardEl.innerHTML = '';
+
+      // Bereken totaal behaalde punten per speler over ALLE spelen
+      const playerTotals = players.map(p => {
+        const total = p.gameScores.reduce((a, b) => a + b, 0);
+        return { name: p.name, scores: p.gameScores, totalScore: total };
+      });
+
+      // Sorteer op hoogste totaalscore
+      playerTotals.sort((a, b) => b.totalScore - a.totalScore);
+
+      // Render per speler hun score per spel + totaal
+      playerTotals.forEach(pt => {
+        const div = document.createElement('div');
+        div.className = 'player-summary-card';
+        
+        let scoresPerGameText = pt.scores.map((score, idx) => `Spel ${idx + 1}: <strong>${score}</strong> pt`).join('<br>');
+
+        div.innerHTML = `
+          <div style="font-size: 1.3rem; font-weight: bold; color: #f59e0b; margin-bottom: 5px;">${pt.name}</div>
+          <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 8px;">${scoresPerGameText}</div>
+          <div style="font-size: 1.1rem; font-weight: bold; border-top: 1px solid #334155; padding-top: 5px; color: #10b981;">
+            Totaal behaalde punten: ${pt.totalScore} pt
+          </div>
+        `;
+        finalLeaderboardEl.appendChild(div);
+      });
+    }
+
+    function closeApp() {
+      alert("Je kunt deze tab nu sluiten op je telefoon.");
+      window.close();
+    }
+
+    function resetToMenu() {
+      document.getElementById('final-screen').classList.add('hidden');
+      document.getElementById('setup-screen').classList.remove('hidden');
     }
 
     function saveCurrentGameToHistory() {
