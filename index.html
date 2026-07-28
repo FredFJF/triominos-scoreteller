@@ -80,7 +80,6 @@
     .leaderboard-item.rank-1 { background: #713f12; border: 2px solid #f59e0b; font-weight: bold; }
     .badge { font-size: 1.4rem; font-weight: bold; }
 
-    /* Stijl voor uitgebreid eindoverzicht */
     .player-summary-card {
       background: #1e293b;
       border-radius: 10px;
@@ -101,6 +100,18 @@
     .history-game {
       border-bottom: 1px solid #334155;
       padding: 10px 0;
+    }
+
+    /* Modal / Pop-up venster stijl */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
     }
   </style>
 </head>
@@ -154,9 +165,21 @@
       <button class="btn btn-success" onclick="submitRound()">💾 Ronde Opslaan & Volgende Ronde</button>
       
       <div style="display: flex; gap: 8px; margin-top: 15px;">
-        <button class="btn btn-secondary" style="font-size: 0.95rem;" onclick="nextGame()">🔄 Spel Voltooien & Nieuw Spel</button>
+        <button class="btn btn-secondary" style="font-size: 0.95rem;" onclick="openConfirmModal()">🔄 Spel Voltooien & Nieuw Spel</button>
         <button class="btn btn-danger" style="font-size: 0.95rem;" onclick="showFinalScores()">🏁 Spel Beëindigen</button>
       </div>
+    </div>
+  </div>
+
+  <!-- EIGEN POP-UP VENSTER (Vervangt de browsermelding) -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="card" style="width: 100%; max-width: 350px; text-align: center;">
+      <h3 style="color: #f59e0b; margin-bottom: 10px;">Nieuw Spel Starten?</h3>
+      <p style="color: #cbd5e1; margin-bottom: 20px; font-size: 1.05rem;">
+        Wil je dit spel voltooien en direct een nieuw spel starten met dezelfde spelers?
+      </p>
+      <button class="btn btn-success" onclick="confirmNextGame()">Ja, Nieuw Spel Starten</button>
+      <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeConfirmModal()">Annuleren</button>
     </div>
   </div>
 
@@ -182,7 +205,6 @@
     let players = [];
     let gameNumber = 1;
     let roundNumber = 1;
-    let gameHistorySession = []; // Onthoudt alle spelen binnen de huidige sessie
     let currentHistory = [];
 
     window.onload = function() {
@@ -208,7 +230,6 @@
 
     function startGameSession() {
       players = [];
-      gameHistorySession = [];
       const inputs = document.querySelectorAll('#player-inputs input');
       inputs.forEach((input, index) => {
         if (input.value.trim() !== "") {
@@ -307,28 +328,32 @@
       };
     }
 
-    /* Aangepast naar "Wil je een nieuw spel starten?" */
-    function nextGame() {
-      if (confirm("Wil je een nieuw spel starten?")) {
-        // Sla huidige spelscore op in de lijst van de speler
-        players.forEach(p => {
-          p.gameScores.push(p.score);
-        });
-
-        saveCurrentGameToHistory();
-
-        // Reset scores voor volgend spel
-        players.forEach(p => p.score = 0);
-        gameNumber++;
-        roundNumber = 1;
-
-        renderGame();
-      }
+    /* Eigen Pop-up functies */
+    function openConfirmModal() {
+      document.getElementById('confirm-modal').classList.remove('hidden');
     }
 
-    /* Aangepaste Eindstand overzicht */
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    function confirmNextGame() {
+      closeConfirmModal();
+
+      players.forEach(p => {
+        p.gameScores.push(p.score);
+      });
+
+      saveCurrentGameToHistory();
+
+      players.forEach(p => p.score = 0);
+      gameNumber++;
+      roundNumber = 1;
+
+      renderGame();
+    }
+
     function showFinalScores() {
-      // Sla ook de score van het laatst gespeelde spel op
       players.forEach(p => {
         p.gameScores.push(p.score);
       });
@@ -337,22 +362,18 @@
       document.getElementById('game-screen').classList.add('hidden');
       document.getElementById('final-screen').classList.remove('hidden');
 
-      // 1. Aantal spelen getoond
       document.getElementById('final-summary-text').innerText = `Er zijn ${gameNumber} spelen gespeeld.`;
 
       const finalLeaderboardEl = document.getElementById('final-leaderboard');
       finalLeaderboardEl.innerHTML = '';
 
-      // Bereken totaal behaalde punten per speler over ALLE spelen
       const playerTotals = players.map(p => {
         const total = p.gameScores.reduce((a, b) => a + b, 0);
         return { name: p.name, scores: p.gameScores, totalScore: total };
       });
 
-      // Sorteer op hoogste totaalscore
       playerTotals.sort((a, b) => b.totalScore - a.totalScore);
 
-      // Render per speler hun score per spel + totaal
       playerTotals.forEach(pt => {
         const div = document.createElement('div');
         div.className = 'player-summary-card';
