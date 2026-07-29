@@ -39,7 +39,8 @@
       outline: none; 
     }
 
-    input[type="text"], input[type="number"] {
+    /* Input ingesteld op tekst/decimaal voor Samsung compatibiliteit */
+    input[type="text"], input[type="tel"] {
       background: #0f172a;
       color: #fff;
       padding: 14px;
@@ -103,6 +104,15 @@
       padding: 10px 0;
     }
 
+    .rounds-detail-box {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -125,8 +135,8 @@
     <p style="color: #94a3b8; margin-bottom: 15px;">Kies 2, 3 of 4 spelers:</p>
     
     <div id="player-inputs">
-      <input type="text" id="p1" value="Speler 1" placeholder="Naam Speler 1" onfocus="this.value=''">
-      <input type="text" id="p2" value="Speler 2" placeholder="Naam Speler 2" onfocus="this.value=''">
+      <input type="text" id="p1" value="Speler 1" placeholder="Naam Speler 1" onfocus="if(this.value.startsWith('Speler')) this.value=''">
+      <input type="text" id="p2" value="Speler 2" placeholder="Naam Speler 2" onfocus="if(this.value.startsWith('Speler')) this.value=''">
     </div>
 
     <div style="display: flex; gap: 8px; margin-top: 10px;">
@@ -151,13 +161,16 @@
     <div class="card">
       <h3 style="margin-bottom: 12px; color: #cbd5e1;">Tussenstand van dit spel</h3>
       <div id="leaderboard"></div>
+      
+      <!-- Overzicht van gewone rondepunten van het huidige spel -->
+      <div id="current-rounds-overview" class="rounds-detail-box hidden"></div>
     </div>
 
     <!-- Ronde Invoer -->
     <div class="card">
       <h2>Score Ronde Invoeren</h2>
       <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 12px;">
-        Voer punten in voor deze ronde (bijv: 15 of -10):
+        Voer punten in (bijv: 15 of -10):
       </p>
 
       <div id="round-inputs"></div>
@@ -233,7 +246,8 @@
       const inputs = document.querySelectorAll('#player-inputs input');
       inputs.forEach((input, index) => {
         if (input.value.trim() !== "") {
-          players.push({ id: index, name: input.value.trim(), score: 0, gameScores: [] });
+          /* rondes per spel bijhouden in een array */
+          players.push({ id: index, name: input.value.trim(), score: 0, currentRounds: [], gameScores: [], allRoundsPerGame: [] });
         }
       });
 
@@ -276,16 +290,31 @@
         leaderboardEl.appendChild(div);
       });
 
+      /* Rendere overzicht per ronde */
+      const roundsBox = document.getElementById('current-rounds-overview');
+      if (roundNumber > 1) {
+        roundsBox.classList.remove('hidden');
+        let html = `<strong>Rondehistorie Spel ${gameNumber}:</strong><br>`;
+        players.forEach(p => {
+          let roundsFormatted = p.currentRounds.map((r, i) => `R${i+1}: ${r >= 0 ? '+'+r : r}`).join(', ');
+          html += `<div style="margin-top: 4px;"><strong>${p.name}:</strong> ${roundsFormatted}</div>`;
+        });
+        roundsBox.innerHTML = html;
+      } else {
+        roundsBox.classList.add('hidden');
+      }
+
       const roundInputsEl = document.getElementById('round-inputs');
       roundInputsEl.innerHTML = '';
 
       players.forEach(player => {
         const div = document.createElement('div');
         div.className = 'score-input-group';
-        /* Onfocus wist het veld alleen als er nog 0 staat, zodat mintekens niet per ongeluk verdwijnen */
+        
+        /* Gebruik van inputmode="decimal" en type="tel" voor Samsung min-toets fix */
         div.innerHTML = `
           <span style="flex: 1; font-weight: bold;">${player.name}:</span>
-          <input type="number" step="any" id="score-input-${player.id}" placeholder="0" onfocus="if(this.value==='0') this.value=''" style="width: 100px; margin: 0;">
+          <input type="tel" inputmode="decimal" id="score-input-${player.id}" placeholder="0" onfocus="if(this.value==='0') this.value=''" style="width: 100px; margin: 0;">
           <button class="btn btn-mic" onclick="startSpeechRecognition(${player.id})">🎤</button>
         `;
         roundInputsEl.appendChild(div);
@@ -295,12 +324,17 @@
     function submitRound() {
       players.forEach(player => {
         const input = document.getElementById(`score-input-${player.id}`);
+        let roundScore = 0;
         if (input && input.value.trim() !== "") {
-          const value = parseInt(input.value, 10);
+          /* Schoongemaakte invoer voor Samsung telefoons */
+          let valStr = input.value.replace(',', '.').trim();
+          const value = parseInt(valStr, 10);
           if (!isNaN(value)) {
-            player.score += value;
+            roundScore = value;
           }
         }
+        player.score += roundScore;
+        player.currentRounds.push(roundScore);
       });
 
       roundNumber++;
@@ -321,7 +355,6 @@
       recognition.onresult = function(event) {
         let transcript = event.results[0][0].transcript.toLowerCase().trim();
         
-        /* Converteer gesproken min-woorden naar een echt minteken */
         transcript = transcript.replace(/min\s*/g, '-');
         transcript = transcript.replace(/minus\s*/g, '-');
         transcript = transcript.replace(/negatief\s*/g, '-');
@@ -339,11 +372,13 @@
     function confirmNextGame() {
       players.forEach(p => {
         p.gameScores.push(p.score);
+        p.allRoundsPerGame.push([...p.currentRounds]);
+        p.score = 0;
+        p.currentRounds = [];
       });
 
       saveCurrentGameToHistory();
 
-      players.forEach(p => p.score = 0);
       gameNumber++;
       roundNumber = 1;
 
@@ -353,6 +388,7 @@
     function showFinalScores() {
       players.forEach(p => {
         p.gameScores.push(p.score);
+        p.allRoundsPerGame.push([...p.currentRounds]);
       });
       saveCurrentGameToHistory();
 
@@ -366,7 +402,7 @@
 
       const playerTotals = players.map(p => {
         const total = p.gameScores.reduce((a, b) => a + b, 0);
-        return { name: p.name, scores: p.gameScores, totalScore: total };
+        return { name: p.name, scores: p.gameScores, roundsPerGame: p.allRoundsPerGame, totalScore: total };
       });
 
       playerTotals.sort((a, b) => b.totalScore - a.totalScore);
@@ -377,14 +413,17 @@
         const div = document.createElement('div');
         div.className = `player-summary-card ${index === 0 ? 'rank-1' : ''}`;
         
-        let scoresPerGameText = pt.scores.map((score, idx) => `Spel ${idx + 1}: <strong>${score}</strong> pt`).join('<br>');
+        let scoresPerGameText = pt.scores.map((score, idx) => {
+          let roundsStr = pt.roundsPerGame[idx] ? pt.roundsPerGame[idx].map(r => r >= 0 ? '+'+r : r).join(', ') : '';
+          return `<strong>Spel ${idx + 1}: ${score} pt</strong> <span style="font-size:0.85rem; color:#94a3b8;">(Rondes: ${roundsStr})</span>`;
+        }).join('<br>');
 
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 1.3rem; font-weight: bold; color: ${index === 0 ? '#f59e0b' : '#3b82f6'};">${pt.name}</span>
             <span style="font-size: 1.1rem; font-weight: bold; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 8px;">${ranks[index] || (index+1)+'e Plek'}</span>
           </div>
-          <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 8px; line-height: 1.4;">${scoresPerGameText}</div>
+          <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 8px; line-height: 1.5;">${scoresPerGameText}</div>
           <div style="font-size: 1.15rem; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; color: #10b981;">
             Totaal: ${pt.totalScore} pt
           </div>
